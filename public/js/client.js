@@ -15,8 +15,8 @@ const Heading = React.createClass({
   },
   getInitialState: function () {
     return {
-      msg: '',
-      status: ''
+      msg: 'loading',
+      status: 'default'
     }
   },
   componentWillReceiveProps: function (props) {
@@ -51,13 +51,42 @@ const Heading = React.createClass({
 })
 
 const Join = React.createClass({
+  propTypes: {
+    connected: React.PropTypes.bool.isRequired
+  },
+  getDefaultProps: function () {
+    return {
+      connected: false
+    }
+  },
+  getInitialState: function () {
+    return {
+      hidden: 'hidden',
+      button: ''
+    }
+  },
+  componentWillReceiveProps: function (props) {
+    if (props.connected) {
+      this.setState({
+        hidden: '',
+        button: <button id='sendJoin' className='btn btn-success' onSubmit={this.submitUser} enable>Join</button>
+      })
+    } else {
+      this.setState({
+        button: <button id='sendJoin' className='btn btn-success' disabled>Join</button>
+      })
+    }
+  },
+  submitUser: function (event) {
+    console.log(event.target)
+  },
   render: function () {
     return (
-      <section id='join' className='well hidden'>
+      <section id='join' className={'well ' + this.state.hidden}>
         <form id='JoinForm' className='form-inline text-right'>
             <fieldset>
               <input type='text' className='form-control' placeholder='Your name' autoComplete='off' required autoFocus />
-              <button id='sendJoin' className='btn btn-success' disabled>Join</button>
+              {this.state.button}
             </fieldset>
         </form>
       </section>
@@ -90,18 +119,22 @@ const Chat = React.createClass({
 
 const Base = React.createClass({
   propTypes: {
-    socketStatus: React.PropTypes.string.isRequired
+    socketStatus: React.PropTypes.string.isRequired,
+    connected: React.PropTypes.bool.isRequired,
+    joined: React.PropTypes.bool.isRequired
   },
   getDefaultProps: function () {
     return {
-      socketStatus: 'default'
+      socketStatus: 'default',
+      connected: false,
+      joined: false
     }
   },
   render: function () {
     return (
       <div>
         <Heading status={this.props.socketStatus}/>
-        <Join />
+        <Join connected={this.props.connected}/>
         <Chat />
       </div>
     )
@@ -112,7 +145,7 @@ ReactDOM.render(<Base />, app)
 
 socket.on('connect', function () {
   console.log('Connected to Chat Socket')
-  ReactDOM.render(<Base socketStatus={'success'}/>, app)
+  ReactDOM.render(<Base socketStatus={'success'} connected={true}/>, app)
 })
 
 socket.on('disconnect', function () {
