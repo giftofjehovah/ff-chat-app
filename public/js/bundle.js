@@ -19369,6 +19369,11 @@ var socket = io(window.location.host);
 var React = require('react');
 var ReactDOM = require('react-dom');
 var app = document.getElementById('app');
+var user = {
+  name: '',
+  connected: false,
+  joined: false
+};
 
 var Heading = React.createClass({
   displayName: 'Heading',
@@ -19427,30 +19432,37 @@ var Join = React.createClass({
   displayName: 'Join',
 
   propTypes: {
-    connected: React.PropTypes.bool.isRequired
+    connected: React.PropTypes.bool.isRequired,
+    joined: React.PropTypes.bool.isRequired
   },
   getDefaultProps: function getDefaultProps() {
     return {
-      connected: false
+      connected: false,
+      joined: false
     };
   },
   getInitialState: function getInitialState() {
     return {
       hidden: 'hidden',
-      button: ''
+      button: '',
+      name: ''
     };
   },
   componentWillReceiveProps: function componentWillReceiveProps(props) {
-    if (props.connected) {
+    if (props.connected && props.joined) {
+      this.setState({
+        hidden: 'hidden'
+      });
+    } else if (props.connected) {
       this.setState({
         hidden: '',
         button: React.createElement(
           'button',
-          { id: 'sendJoin', className: 'btn btn-success', onSubmit: this.submitUser, enable: true },
+          { id: 'sendJoin', className: 'btn btn-success', enable: true },
           'Join'
         )
       });
-    } else {
+    } else if (!props.connected) {
       this.setState({
         button: React.createElement(
           'button',
@@ -19460,8 +19472,16 @@ var Join = React.createClass({
       });
     }
   },
+  setName: function setName(event) {
+    this.setState({
+      name: event.target.value
+    });
+  },
   submitUser: function submitUser(event) {
-    console.log(event.target);
+    event.preventDefault();
+    user.name = this.state.name;
+    console.log('Joining chat with name: ', user.name);
+    socket.emit('join', user);
   },
   render: function render() {
     return React.createElement(
@@ -19469,11 +19489,11 @@ var Join = React.createClass({
       { id: 'join', className: 'well ' + this.state.hidden },
       React.createElement(
         'form',
-        { id: 'JoinForm', className: 'form-inline text-right' },
+        { id: 'JoinForm', className: 'form-inline text-right', onSubmit: this.submitUser },
         React.createElement(
           'fieldset',
           null,
-          React.createElement('input', { type: 'text', className: 'form-control', placeholder: 'Your name', autoComplete: 'off', required: true, autoFocus: true }),
+          React.createElement('input', { type: 'text', onChange: this.setName, className: 'form-control', placeholder: 'Your name', autoComplete: 'off', required: true, autoFocus: true }),
           this.state.button
         )
       )
@@ -19484,10 +19504,53 @@ var Join = React.createClass({
 var Chat = React.createClass({
   displayName: 'Chat',
 
+  propTypes: {
+    connected: React.PropTypes.bool.isRequired,
+    joined: React.PropTypes.bool.isRequired,
+    msg: React.PropTypes.object
+  },
+  getDefaultProps: function getDefaultProps() {
+    return {
+      connected: false,
+      joined: false
+    };
+  },
+  getInitialState: function getInitialState() {
+    return {
+      hidden: 'hidden',
+      messages: []
+    };
+  },
+  addMsg: function addMsg(msg) {
+    var html;
+    if (msg.type === 'welcome') {
+      html = React.createElement(
+        'div',
+        { className: 'text-center' },
+        React.createElement(
+          'strong',
+          null,
+          msg.content
+        )
+      );
+    }
+    this.setState({
+      messages: this.state.messages.push(html)
+    });
+    console.log(this.state.messages[0]);
+  },
+  componentWillReceiveProps: function componentWillReceiveProps(props) {
+    if (props.connected && props.joined) {
+      this.setState({
+        hidden: ''
+      });
+    }
+    if (props.msg) this.addMsg(props.msg);
+  },
   render: function render() {
     return React.createElement(
       'main',
-      { className: 'panel panel-default hidden' },
+      { className: 'panel panel-default ' + this.state.hidden },
       React.createElement(
         'div',
         { className: 'panel-heading' },
@@ -19515,7 +19578,11 @@ var Chat = React.createClass({
           React.createElement('small', { id: 'connected' })
         ),
         React.createElement('hr', null),
-        React.createElement('div', { id: 'messages' })
+        React.createElement(
+          'div',
+          { id: 'messages' },
+          this.state.messages[0]
+        )
       )
     );
   }
@@ -19527,7 +19594,8 @@ var Base = React.createClass({
   propTypes: {
     socketStatus: React.PropTypes.string.isRequired,
     connected: React.PropTypes.bool.isRequired,
-    joined: React.PropTypes.bool.isRequired
+    joined: React.PropTypes.bool.isRequired,
+    msg: React.PropTypes.object
   },
   getDefaultProps: function getDefaultProps() {
     return {
@@ -19541,8 +19609,8 @@ var Base = React.createClass({
       'div',
       null,
       React.createElement(Heading, { status: this.props.socketStatus }),
-      React.createElement(Join, { connected: this.props.connected }),
-      React.createElement(Chat, null)
+      React.createElement(Join, { connected: this.props.connected, joined: this.props.joined }),
+      React.createElement(Chat, { connected: this.props.connected, joined: this.props.joined, msg: this.props.msg })
     );
   }
 });
@@ -19551,12 +19619,24 @@ ReactDOM.render(React.createElement(Base, null), app);
 
 socket.on('connect', function () {
   console.log('Connected to Chat Socket');
-  ReactDOM.render(React.createElement(Base, { socketStatus: 'success', connected: true }), app);
+  user.connected = true;
+  ReactDOM.render(React.createElement(Base, { socketStatus: 'success', connected: user.connected, joined: user.joined }), app);
 });
 
 socket.on('disconnect', function () {
   console.log('Disconnected from Chat Socket');
-  ReactDOM.render(React.createElement(Base, { socketStatus: 'fail' }), app);
+  user.connected = false;
+  ReactDOM.render(React.createElement(Base, { socketStatus: 'fail', connected: user.connected, joined: user.joined }), app);
+});
+
+socket.on('welcome', function (msg) {
+  console.log('Received welcome message: ', msg);
+  var msgObject = {
+    type: 'welcome',
+    content: msg
+  };
+  user.joined = true;
+  ReactDOM.render(React.createElement(Base, { socketStatus: 'success', connected: user.connected, joined: user.joined, msg: msgObject }), app);
 });
 
 },{"react":165,"react-dom":29}]},{},[166]);
