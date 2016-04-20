@@ -8,11 +8,12 @@
     <!-- Bootstrap -->
     <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
     <link rel="stylesheet" href="css/style.css">
+    <script src="//cdn.socket.io/socket.io-1.4.5.js"></script>
+    <script src="//code.jquery.com/jquery-1.11.1.js"></script>
   </head>
   <body>
-    
-    <div class="container">
-      <h1>WDISG2 Chat <span id="status" class="label label-default">loading</span></h1>
+    <div class="container" id="app">
+      <h1>WDISG2 <span id="status" class="label label-default">loading</span></h1>
 
       <section id="join" class="well hidden">
         <form id="JoinForm" class="form-inline text-right">
@@ -41,12 +42,6 @@
         </section>
       </main>
     </div>
-    
-  <!-- Socket.io -->
-  <script src="//cdn.socket.io/socket.io-1.4.5.js"></script>
-  <!-- JQuery -->
-  <script src="//code.jquery.com/jquery-1.11.1.js"></script>
-  <!-- main client js -->
-  <script src="js/client.js"></script>
   </body>
+  <script src="js/bundle.js"></script>
 </html>
