@@ -69,7 +69,7 @@ const Join = React.createClass({
   getInitialState: function () {
     return {
       hidden: 'hidden',
-      button: '',
+      button: <button id='sendJoin' className='btn btn-success' disabled>Join</button>,
       name: ''
     }
   },
@@ -129,47 +129,83 @@ const Chat = React.createClass({
   getInitialState: function () {
     return {
       hidden: 'hidden',
-      messages: []
+      messages: [],
+      currentMsg: '',
+      id: 0,
+      button: <button id='sendMessage' className='btn btn-success' disabled>Send</button>
     }
   },
   addMsg: function (msg) {
     var html
+    this.state.id++
     if (msg.type === 'welcome') {
-      html = <div className='text-center'><strong>{msg.content}</strong></div>
+      html = <div key='welcome' className='text-center'><strong>{msg.content}</strong></div>
+    } else if (msg.type === 'chat') {
+      html = <div key={this.state.id} className='alert alert-success'><strong>{msg.content.user.name + ': '}</strong>{msg.content.message}</div>
+    } else if (msg.type === 'left') {
+      html = <div key={this.state.id} className='text-center'><strong>{msg.content}</strong></div>
+    } else if (msg.type === 'join') {
+      html = <div key={this.state.id} className='text-center'><strong>{msg.content}</strong></div>
     }
-    this.setState({
-      messages: this.state.messages.push(html)
-    })
-    console.log(this.state.messages[0])
+    this.state.messages.unshift(html)
   },
   componentWillReceiveProps: function (props) {
     if (props.connected && props.joined) {
       this.setState({
-        hidden: ''
+        hidden: '',
+        button: <button id='sendMessage' className='btn btn-success' enable>Send</button>
+      })
+    } else if (!props.connected && props.joined) {
+      this.setState({
+        button: <button id='sendMessage' className='btn btn-success' disabled>Send</button>
       })
     }
     if (props.msg) this.addMsg(props.msg)
+  },
+  storeText: function (event) {
+    this.setState({
+      currentMsg: event.target.value
+    })
+  },
+  sendMessage: function (event) {
+    event.preventDefault()
+    console.log('Sending message: ', this.state.currentMsg)
+    this.state.id ++
+    var html = <div key={this.state.id} className='alert alert-info text-right'>{this.state.currentMsg}</div>
+    this.state.messages.unshift(html)
+    socket.emit('chat', this.state.currentMsg)
+    this.setState({
+      currentMsg: ''
+    })
   },
   render: function () {
     return (
       <main className={'panel panel-default ' + this.state.hidden}>
         <div className='panel-heading'>
-          <form id='MessageForm' className='form-inline text-right'>
+          <form id='MessageForm' className='form-inline text-right' onSubmit={this.sendMessage}>
             <fieldset>
-              <input type='text' className='form-control' placeholder='say what?' autoComplete='off' required autoFocus />
-              <button id='sendMessage' className='btn btn-success' disabled>Send</button>
+              <input type='text' onChange={this.storeText} value={this.state.currentMsg} className='form-control' placeholder='say what?' autoComplete='off' required autoFocus />
+              {this.state.button}
             </fieldset>
           </form>
         </div>
         <section className='panel-body'>
           <div className='text-center'><small id='connected'></small></div>
           <hr />
-          <div id='messages'>
-            {this.state.messages[0]}
-          </div>
+          {this.state.messages}
         </section>
       </main>
     )
+  }
+})
+
+const Message = React.createClass({
+  propTypes: {
+    messages: React.PropTypes.array
+  },
+  render: function () {
+    console.log(this.props.messages)
+    return React.createElement('div', {id: 'messages'}, this.props.messages)
   }
 })
 
@@ -198,8 +234,6 @@ const Base = React.createClass({
   }
 })
 
-ReactDOM.render(<Base />, app)
-
 socket.on('connect', function () {
   console.log('Connected to Chat Socket')
   user.connected = true
@@ -221,3 +255,32 @@ socket.on('welcome', function (msg) {
   user.joined = true
   ReactDOM.render(<Base socketStatus={'success'} connected={user.connected} joined={user.joined} msg={msgObject}/>, app)
 })
+
+socket.on('chat', function (msg) {
+  console.log('Received message: ', msg)
+  var msgObject = {
+    type: 'chat',
+    content: msg
+  }
+  ReactDOM.render(<Base socketStatus={'success'} connected={user.connected} joined={user.joined} msg={msgObject}/>, app)
+})
+
+socket.on('left', function (users) {
+  console.log(users.name + ' left the chat.')
+  var msgObject = {
+    type: 'left',
+    content: users.name + ' left the chat.'
+  }
+  ReactDOM.render(<Base socketStatus={'success'} connected={user.connected} joined={user.joined} msg={msgObject}/>, app)
+})
+
+socket.on('joined', function (users) {
+  console.log(users.name + ' joined the chat.')
+  var msgObject = {
+    type: 'join',
+    content: users.name + ' joined the chat.'
+  }
+  ReactDOM.render(<Base socketStatus={'success'} connected={user.connected} joined={user.joined} msg={msgObject}/>, app)
+})
+
+ReactDOM.render(<Base />, app)

@@ -19444,7 +19444,11 @@ var Join = React.createClass({
   getInitialState: function getInitialState() {
     return {
       hidden: 'hidden',
-      button: '',
+      button: React.createElement(
+        'button',
+        { id: 'sendJoin', className: 'btn btn-success', disabled: true },
+        'Join'
+      ),
       name: ''
     };
   },
@@ -19518,15 +19522,54 @@ var Chat = React.createClass({
   getInitialState: function getInitialState() {
     return {
       hidden: 'hidden',
-      messages: []
+      messages: [],
+      currentMsg: '',
+      id: 0,
+      button: React.createElement(
+        'button',
+        { id: 'sendMessage', className: 'btn btn-success', disabled: true },
+        'Send'
+      )
     };
   },
   addMsg: function addMsg(msg) {
     var html;
+    this.state.id++;
     if (msg.type === 'welcome') {
       html = React.createElement(
         'div',
-        { className: 'text-center' },
+        { key: 'welcome', className: 'text-center' },
+        React.createElement(
+          'strong',
+          null,
+          msg.content
+        )
+      );
+    } else if (msg.type === 'chat') {
+      html = React.createElement(
+        'div',
+        { key: this.state.id, className: 'alert alert-success' },
+        React.createElement(
+          'strong',
+          null,
+          msg.content.user.name + ': '
+        ),
+        msg.content.message
+      );
+    } else if (msg.type === 'left') {
+      html = React.createElement(
+        'div',
+        { key: this.state.id, className: 'text-center' },
+        React.createElement(
+          'strong',
+          null,
+          msg.content
+        )
+      );
+    } else if (msg.type === 'join') {
+      html = React.createElement(
+        'div',
+        { key: this.state.id, className: 'text-center' },
         React.createElement(
           'strong',
           null,
@@ -19534,18 +19577,48 @@ var Chat = React.createClass({
         )
       );
     }
-    this.setState({
-      messages: this.state.messages.push(html)
-    });
-    console.log(this.state.messages[0]);
+    this.state.messages.unshift(html);
   },
   componentWillReceiveProps: function componentWillReceiveProps(props) {
     if (props.connected && props.joined) {
       this.setState({
-        hidden: ''
+        hidden: '',
+        button: React.createElement(
+          'button',
+          { id: 'sendMessage', className: 'btn btn-success', enable: true },
+          'Send'
+        )
+      });
+    } else if (!props.connected && props.joined) {
+      this.setState({
+        button: React.createElement(
+          'button',
+          { id: 'sendMessage', className: 'btn btn-success', disabled: true },
+          'Send'
+        )
       });
     }
     if (props.msg) this.addMsg(props.msg);
+  },
+  storeText: function storeText(event) {
+    this.setState({
+      currentMsg: event.target.value
+    });
+  },
+  sendMessage: function sendMessage(event) {
+    event.preventDefault();
+    console.log('Sending message: ', this.state.currentMsg);
+    this.state.id++;
+    var html = React.createElement(
+      'div',
+      { key: this.state.id, className: 'alert alert-info text-right' },
+      this.state.currentMsg
+    );
+    this.state.messages.unshift(html);
+    socket.emit('chat', this.state.currentMsg);
+    this.setState({
+      currentMsg: ''
+    });
   },
   render: function render() {
     return React.createElement(
@@ -19556,16 +19629,12 @@ var Chat = React.createClass({
         { className: 'panel-heading' },
         React.createElement(
           'form',
-          { id: 'MessageForm', className: 'form-inline text-right' },
+          { id: 'MessageForm', className: 'form-inline text-right', onSubmit: this.sendMessage },
           React.createElement(
             'fieldset',
             null,
-            React.createElement('input', { type: 'text', className: 'form-control', placeholder: 'say what?', autoComplete: 'off', required: true, autoFocus: true }),
-            React.createElement(
-              'button',
-              { id: 'sendMessage', className: 'btn btn-success', disabled: true },
-              'Send'
-            )
+            React.createElement('input', { type: 'text', onChange: this.storeText, value: this.state.currentMsg, className: 'form-control', placeholder: 'say what?', autoComplete: 'off', required: true, autoFocus: true }),
+            this.state.button
           )
         )
       ),
@@ -19578,13 +19647,21 @@ var Chat = React.createClass({
           React.createElement('small', { id: 'connected' })
         ),
         React.createElement('hr', null),
-        React.createElement(
-          'div',
-          { id: 'messages' },
-          this.state.messages[0]
-        )
+        this.state.messages
       )
     );
+  }
+});
+
+var Message = React.createClass({
+  displayName: 'Message',
+
+  propTypes: {
+    messages: React.PropTypes.array
+  },
+  render: function render() {
+    console.log(this.props.messages);
+    return React.createElement('div', { id: 'messages' }, this.props.messages);
   }
 });
 
@@ -19615,8 +19692,6 @@ var Base = React.createClass({
   }
 });
 
-ReactDOM.render(React.createElement(Base, null), app);
-
 socket.on('connect', function () {
   console.log('Connected to Chat Socket');
   user.connected = true;
@@ -19638,5 +19713,34 @@ socket.on('welcome', function (msg) {
   user.joined = true;
   ReactDOM.render(React.createElement(Base, { socketStatus: 'success', connected: user.connected, joined: user.joined, msg: msgObject }), app);
 });
+
+socket.on('chat', function (msg) {
+  console.log('Received message: ', msg);
+  var msgObject = {
+    type: 'chat',
+    content: msg
+  };
+  ReactDOM.render(React.createElement(Base, { socketStatus: 'success', connected: user.connected, joined: user.joined, msg: msgObject }), app);
+});
+
+socket.on('left', function (users) {
+  console.log(users.name + ' left the chat.');
+  var msgObject = {
+    type: 'left',
+    content: users.name + ' left the chat.'
+  };
+  ReactDOM.render(React.createElement(Base, { socketStatus: 'success', connected: user.connected, joined: user.joined, msg: msgObject }), app);
+});
+
+socket.on('joined', function (users) {
+  console.log(users.name + ' joined the chat.');
+  var msgObject = {
+    type: 'join',
+    content: users.name + ' joined the chat.'
+  };
+  ReactDOM.render(React.createElement(Base, { socketStatus: 'success', connected: user.connected, joined: user.joined, msg: msgObject }), app);
+});
+
+ReactDOM.render(React.createElement(Base, null), app);
 
 },{"react":165,"react-dom":29}]},{},[166]);
