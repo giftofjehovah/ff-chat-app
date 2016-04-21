@@ -19394,7 +19394,7 @@ var Heading = React.createClass({
     };
   },
   componentWillReceiveProps: function componentWillReceiveProps(props) {
-    if (props === 'default') {
+    if (props.status === 'default') {
       console.log('default');
       this.setState({
         msg: 'loading',
