@@ -19365,6 +19365,7 @@ module.exports = require('./lib/React');
 'use strict';
 
 // const io = require('socket.io')
+console.log('Chat in React Goodnesssss!');
 var socket = io(window.location.host);
 var React = require('react');
 var ReactDOM = require('react-dom');
@@ -19393,7 +19394,6 @@ var Heading = React.createClass({
     };
   },
   componentWillReceiveProps: function componentWillReceiveProps(props) {
-    console.log(props.status);
     if (props === 'default') {
       console.log('default');
       this.setState({
@@ -19401,7 +19401,6 @@ var Heading = React.createClass({
         status: 'default'
       });
     } else if (props.status === 'success') {
-      console.log('success');
       this.setState({
         msg: 'connected',
         status: 'success'
@@ -19511,7 +19510,8 @@ var Chat = React.createClass({
   propTypes: {
     connected: React.PropTypes.bool.isRequired,
     joined: React.PropTypes.bool.isRequired,
-    msg: React.PropTypes.object
+    msg: React.PropTypes.object,
+    names: React.PropTypes.string
   },
   getDefaultProps: function getDefaultProps() {
     return {
@@ -19525,6 +19525,7 @@ var Chat = React.createClass({
       messages: [],
       currentMsg: '',
       id: 0,
+      names: '',
       button: React.createElement(
         'button',
         { id: 'sendMessage', className: 'btn btn-success', disabled: true },
@@ -19599,6 +19600,12 @@ var Chat = React.createClass({
       });
     }
     if (props.msg) this.addMsg(props.msg);
+    if (props.names) this.showOnline(props.names);
+  },
+  showOnline: function showOnline(names) {
+    this.setState({
+      names: names
+    });
   },
   storeText: function storeText(event) {
     this.setState({
@@ -19644,24 +19651,16 @@ var Chat = React.createClass({
         React.createElement(
           'div',
           { className: 'text-center' },
-          React.createElement('small', { id: 'connected' })
+          React.createElement(
+            'small',
+            { id: 'connected' },
+            this.state.names
+          )
         ),
         React.createElement('hr', null),
         this.state.messages
       )
     );
-  }
-});
-
-var Message = React.createClass({
-  displayName: 'Message',
-
-  propTypes: {
-    messages: React.PropTypes.array
-  },
-  render: function render() {
-    console.log(this.props.messages);
-    return React.createElement('div', { id: 'messages' }, this.props.messages);
   }
 });
 
@@ -19672,7 +19671,8 @@ var Base = React.createClass({
     socketStatus: React.PropTypes.string.isRequired,
     connected: React.PropTypes.bool.isRequired,
     joined: React.PropTypes.bool.isRequired,
-    msg: React.PropTypes.object
+    msg: React.PropTypes.object,
+    names: React.PropTypes.string
   },
   getDefaultProps: function getDefaultProps() {
     return {
@@ -19687,7 +19687,7 @@ var Base = React.createClass({
       null,
       React.createElement(Heading, { status: this.props.socketStatus }),
       React.createElement(Join, { connected: this.props.connected, joined: this.props.joined }),
-      React.createElement(Chat, { connected: this.props.connected, joined: this.props.joined, msg: this.props.msg })
+      React.createElement(Chat, { connected: this.props.connected, joined: this.props.joined, msg: this.props.msg, names: this.props.names })
     );
   }
 });
@@ -19739,6 +19739,20 @@ socket.on('joined', function (users) {
     content: users.name + ' joined the chat.'
   };
   ReactDOM.render(React.createElement(Base, { socketStatus: 'success', connected: user.connected, joined: user.joined, msg: msgObject }), app);
+});
+
+socket.on('online', function (connections) {
+  var names = '';
+  console.log('Connections: ', connections);
+  for (var i = 0; i < connections.length; ++i) {
+    if (connections[i].user) {
+      if (i > 0) {
+        if (i === connections.length - 1) names += ' and ';else names += ', ';
+      }
+      names += connections[i].user.name;
+    }
+  }
+  ReactDOM.render(React.createElement(Base, { socketStatus: 'success', connected: user.connected, joined: user.joined, names: names }), app);
 });
 
 ReactDOM.render(React.createElement(Base, null), app);

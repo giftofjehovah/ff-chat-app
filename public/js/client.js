@@ -1,4 +1,5 @@
 // const io = require('socket.io')
+console.log('Chat in React Goodnesssss!')
 const socket = io(window.location.host)
 const React = require('react')
 const ReactDOM = require('react-dom')
@@ -25,7 +26,6 @@ const Heading = React.createClass({
     }
   },
   componentWillReceiveProps: function (props) {
-    console.log(props.status)
     if (props === 'default') {
       console.log('default')
       this.setState({
@@ -33,7 +33,6 @@ const Heading = React.createClass({
         status: 'default'
       })
     } else if (props.status === 'success') {
-      console.log('success')
       this.setState({
         msg: 'connected',
         status: 'success'
@@ -118,7 +117,8 @@ const Chat = React.createClass({
   propTypes: {
     connected: React.PropTypes.bool.isRequired,
     joined: React.PropTypes.bool.isRequired,
-    msg: React.PropTypes.object
+    msg: React.PropTypes.object,
+    names: React.PropTypes.string
   },
   getDefaultProps: function () {
     return {
@@ -132,6 +132,7 @@ const Chat = React.createClass({
       messages: [],
       currentMsg: '',
       id: 0,
+      names: '',
       button: <button id='sendMessage' className='btn btn-success' disabled>Send</button>
     }
   },
@@ -161,6 +162,12 @@ const Chat = React.createClass({
       })
     }
     if (props.msg) this.addMsg(props.msg)
+    if (props.names) this.showOnline(props.names)
+  },
+  showOnline: function (names) {
+    this.setState({
+      names: names
+    })
   },
   storeText: function (event) {
     this.setState({
@@ -190,7 +197,7 @@ const Chat = React.createClass({
           </form>
         </div>
         <section className='panel-body'>
-          <div className='text-center'><small id='connected'></small></div>
+          <div className='text-center'><small id='connected'>{this.state.names}</small></div>
           <hr />
           {this.state.messages}
         </section>
@@ -199,22 +206,13 @@ const Chat = React.createClass({
   }
 })
 
-const Message = React.createClass({
-  propTypes: {
-    messages: React.PropTypes.array
-  },
-  render: function () {
-    console.log(this.props.messages)
-    return React.createElement('div', {id: 'messages'}, this.props.messages)
-  }
-})
-
 const Base = React.createClass({
   propTypes: {
     socketStatus: React.PropTypes.string.isRequired,
     connected: React.PropTypes.bool.isRequired,
     joined: React.PropTypes.bool.isRequired,
-    msg: React.PropTypes.object
+    msg: React.PropTypes.object,
+    names: React.PropTypes.string
   },
   getDefaultProps: function () {
     return {
@@ -228,7 +226,7 @@ const Base = React.createClass({
       <div>
         <Heading status={this.props.socketStatus}/>
         <Join connected={this.props.connected} joined={this.props.joined}/>
-        <Chat connected={this.props.connected} joined={this.props.joined} msg={this.props.msg}/>
+        <Chat connected={this.props.connected} joined={this.props.joined} msg={this.props.msg} names={this.props.names}/>
       </div>
     )
   }
@@ -281,6 +279,21 @@ socket.on('joined', function (users) {
     content: users.name + ' joined the chat.'
   }
   ReactDOM.render(<Base socketStatus={'success'} connected={user.connected} joined={user.joined} msg={msgObject}/>, app)
+})
+
+socket.on('online', function (connections) {
+  var names = ''
+  console.log('Connections: ', connections)
+  for (var i = 0; i < connections.length; ++i) {
+    if (connections[i].user) {
+      if (i > 0) {
+        if (i === connections.length - 1) names += ' and '
+        else names += ', '
+      }
+      names += connections[i].user.name
+    }
+  }
+  ReactDOM.render(<Base socketStatus={'success'} connected={user.connected} joined={user.joined} names={names}/>, app)
 })
 
 ReactDOM.render(<Base />, app)
